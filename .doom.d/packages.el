@@ -5,7 +5,7 @@
 ;; (package! some-package)
 ;; (package! another-package :recipe (:host github :repo "username/repo"))
 ;; (package! builtin-package :disable t)
-
+(package! straight :pin "3eca39d")
 (package! flyspell-lazy)
 (package! mu4e-alert)
 (package! pass)
@@ -26,7 +26,7 @@
 (package! pdf-tools)
 (package! link-hint)
 (package! vertico)
-(package! marginalia)   
+(package! marginalia)
 (package! swiper)
 (package! org-roam)
 (package! consult)
@@ -43,3 +43,4 @@
 (package! darkroom)
 (package! org-mime)
 (package! alert)
+(package! corfu)

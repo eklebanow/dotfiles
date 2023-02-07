@@ -33,10 +33,19 @@
 
 (setq evil-vsplit-window-right t
       evil-split-window-below t)
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (consult-buffer))
+
+(setq evil-vsplit-window-right t
+      evil-split-window-below t)
 
 (defadvice! prompt-for-buffer (&rest _)
   :after '(evil-window-split evil-window-vsplit)
   (consult-buffer))
+
+;;(setq browse-url-browser-function 'browse-url-generic)
+;;(setq browse-url-generic-program "qutebrowser")
 
   (setq mu4e-maildir (expand-file-name "~/Maildir/my-outlook")
         mu4e-get-mail-command "mbsync -a"
@@ -126,18 +135,17 @@
 (setq elfeed-show-entry-switch 'display-buffer)
 (setq rmh-elfeed-org-files (list "~/elfeed.org"))))
 
-(after! elfeed
 
-(setq browse-url-generic-program "qutebrowser")
+(after! elfeed
 (setq browse-url-handlers '((".*youtube.*" . browse-url-xdg-open) ("." . eww-browse-url)))
 (setq elfeed-feeds '("~/feeds.el"))
-(global-set-key "\C-ce" 'elfeed-new-search)
+(global-set-key "\C-ce" 'elfeed-new-search))
 
 (defun bjm/elfeed-show-visit-gui ()
   "wrapper for elfeed-show))-visit to use gui browser instead of eww"
   (interactive)
   (let ((browse-url-generic-program "qutebrowser"))
-    (elfeed-show-visit t))))
+    (elfeed-show-visit t)))
 
 (global-set-key (kbd "C-x w") 'elfeed)
 
@@ -198,11 +206,11 @@
   (setq elfeed-goodies/log-window-size 0.8)
   (setq elfeed-goodies/powerline-default-separator 'arrow))
 
-(defcustom eww-buffer-max-height 0.7
+(defcustom eww-buffer-max-height 0.9
   "maximum height for the eww buffer window."
   :group 'eww
   :type 'integer)
-(setq eww-buffer-max-height 0.7)
+(setq eww-buffer-max-height 0.1)
 
 (after! circe
   (set-irc-server! "irc.us.libera.chat"
@@ -213,12 +221,12 @@
 	      :sasl-password "dairycow"
 	      :channels ("#gentoo"))))
 
-(setq org-journal-enable-agenda-integration 't)
+(setq org-journal-enae-agenda-integration 't)
 (setq org-hide-emphasis-markers t)
-;; (after! org
-;; (add-hook 'visual-line-mode-hook #'visual-fill-column-mode)
-;;   (setq visual-fill-column-width 80)
-;;   (setq-default visual-fill-column-center-text t))
+ (after! org
+ (add-hook 'visual-line-mode-hook #'visual-fill-column-mode)
+   (setq visual-fill-column-width 80)
+   (setq-default visual-fill-column-center-text t))
 
  (global-set-key "\C-s" 'swiper)
 
@@ -236,57 +244,62 @@
    (setq org-superstar-headline-bullets-list '("⁖"))
    (setq org-agenda-files '("~/org/"))
    (setq org-odt-preferred-output-format "doc"))
+(after! org
+  (map! :map org-mode-map
+        :n "M-j" #'org-metadown
+        :n "M-k" #'org-metaup))
 
 (use-package org-auto-tangle
   :defer t
   :hook (org-mode . org-auto-tangle-mode)
 (setq org-auto-tangle-default t))
 
-;(after! org
-;  (use-package! org-roam
-;  :init
-;  (setq org-roam-v2-ack t)
-;  (map! :leader
-;        :prefix "n"
-;        :desc "org-roam" "l" #'org-roam-buffer-toggle
-;        :desc "org-roam-node-insert" "i" #'org-roam-node-insert
-;        :desc "org-roam-node-find" "f" #'org-roam-node-find
-;        :desc "org-roam-ref-find" "r" #'org-roam-ref-find
-;        :desc "org-roam-show-graph" "g" #'org-roam-show-graph
-;        :desc "org-roam-capture" "c" #'org-roam-capture)
-;:config
-;(org-roam-setup)))
-;
-;  (add-hook 'org-roam-mode-hook #'turn-on-visual-line-mode)
-;  (setq org-roam-capture-templates
-;        '(("d" "default" plain
-;           "%?"
-;           :if-new (file+head "${slug}.org"
-;                              "#+title: ${title}\n")
-;           :unnarrowed t)))
-; (use-package! org-roam-dailies
-;  :init
-;  (map! :leader
-;        :prefix "n"
-;        :desc "org-roam-dailies-capture-today" "j" #'org-roam-dailies-capture-today)
-;  :custom
-;  (org-roam-directory "~/RoamNotes")
-;  (org-roam-completion-everywhere t)
-;  (org-roam-dailies-capture-templates
-;    '(("d" "default" entry "* %<%I:%M %p>: %?"
-;       :if-new (file+head "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n"))))
-;  :bind (("C-c n l" . org-roam-buffer-toggle)
-;         ("C-c n f" . org-roam-node-find)
-;         ("C-c n i" . org-roam-node-insert)
-;         :map org-mode-map
-;         ("C-M-i" . completion-at-point)
-;         :map org-roam-dailies-map
-;         ("Y" . org-roam-dailies-capture-yesterday)
-;         ("T" . org-roam-dailies-capture-tomorrow))
-;  :bind-keymap
-;  ("C-c n d" . org-roam-dailies-map)
-;  :config
-;  (require 'org-roam-dailies))
+ (after! org
+   (use-package! org-roam
+     :init
+     (setq org-roam-v2-ack t)
+ ;
+     (map! :leader
+         :prefix "n"
+         :desc "org-roam" "l" #'org-roam-buffer-toggle
+         :desc "org-roam-node-insert" "i" #'org-roam-node-insert
+         :desc "org-roam-node-find" "f" #'org-roam-node-find
+         :desc "org-roam-ref-find" "r" #'org-roam-ref-find
+         :desc "org-roam-show-graph" "g" #'org-roam-show-graph
+         :desc "org-roam-capture" "c" #'org-roam-capture)
+ :config
+ (org-roam-setup)))
+
+   (add-hook 'org-roam-mode-hook #'turn-on-visual-line-mode)
+   (setq org-roam-capture-templates
+         '(("d" "default" plain
+            "%?"
+            :if-new (file+head "${slug}.org"
+                               "#+title: ${title}\n")
+            :unnarrowed t)))
+(use-package! org-roam-dailies
+  :init
+  (map! :leader
+        :prefix "n"
+        :desc "org-roam-dailies-capture-today" "j" #'org-roam-dailies-capture-today)
+  :custom
+  (org-roam-directory "~/RoamNotes")
+  (org-roam-completion-everywhere t)
+  (org-roam-dailies-capture-templates
+    '(("d" "default" entry "* %<%I:%M %p>: %?"
+       :if-new (file+head "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n"))))
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n i" . org-roam-node-insert)
+         :map org-mode-map
+         ("C-M-i" . completion-at-point)
+         :map org-roam-dailies-map
+         ("Y" . org-roam-dailies-capture-yesterday)
+         ("T" . org-roam-dailies-capture-tomorrow))
+  :bind-keymap
+  ("C-c n d" . org-roam-dailies-map)
+  :config
+  (require 'org-roam-dailies))
 
 (use-package! org-download
   :after org
