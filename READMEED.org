@@ -1,0 +1,324 @@
+
+
+ DOOM Emacs Config
+#+PROPERTY: header-args :tangle /home/eklebanow/.doom.d/config.el
+#+auto_tangle: t
+* TABLE OF CONTENTS :toc:
+  - [[#introductiondd][Introduction:dd]]
+- [[#email-config-using-mbsync-and-mu4e][Email config using Mbsync and Mu4e]]
+- [[#elfeed-config-for-rss-feeds][Elfeed Config for RSS Feeds]]
+- [[#config-for-irc-chat-using-circe][config for IRC Chat Using Circe:]]
+- [[#config-for-org-mode][Config for Org-Mode:]]
+-  [[#org-auto-tangle][Org-Auto-Tangle]]
+- [[#journaling-with-org-roam][Journaling with Org-Roam]]
+  - [[#insert-org-down][Insert Org-Down]]
+- [[#config-for-vuiet-music-player][Config for Vuiet Music Player:]]
+- [[#setup-for-pdf-exports][Setup for PDF exports]]
+- [[#add-beacon][Add Beacon]]
+
+** Introduction:dd
+General parameters for setting up emacs environment. This includes theming, window parameters, modeline parameters and font style setting.
+
+#+begin_src emacs-lisp
+(setq user-full-name "Edward R. Klebanow"
+      user-mail-address "klebane@outlook.com")
+(setq fancy-splash-image "~/doom-vapourwave-grid.png")
+(setq doom-theme 'leuven)
+(setq doom-font (font-spec :family "JetBrains Mono" :size 16)
+      doom-big-font (font-spec :family "JetBrains Mono" :size 26)
+      doom-variable-pitch-font (font-spec :family "Overpass" :size 16)
+      doom-serif-font (font-spec :family "IBM Plex Mono" :weight 'light))
+(setq-default
+ delete-by-moving-to-trash t
+ tab-width 4
+ uniquify-buffer-name-style 'forward
+ window-combination-resize t
+ x-stretch-cursor t)
+(show-smartparens-global-mode 1)
+(setq undo-limit 80000000
+      evil-want-fine-undo t
+      auto-save-default t
+      inhibit-compacting-font-caches t
+      truncate-string-ellipsis "⁖"
+      display-time-24hr-format t)
+(setq inhibit-startup-screen t)
+
+(setq auth-sources '("~/.authinfo.gpg"))
+(delete-selection-mode 1)
+(display-time-mode 1)
+(display-battery-mode 1)
+(global-subword-mode 1)
+(setq-default major-mode 'org-mode)
+(global-set-key "\C-cd" 'darkroom-tentative-mode)
+
+(setq display-line-numbers-type 'visual)
+(setq display-time-day-and-date t)
+
+(setq evil-vsplit-window-right t
+      evil-split-window-below t)
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (consult-buffer))
+#+end_src
+
+
+
+* Email config using Mbsync and Mu4e
+Mbsync is used to synchronize emails from outlook.com mail to be presented to Mu4e.  Outddgoing mail is gpg encoded. Bookmarks can be made and viewed and incoming e-mail can be sddent to graphical browsers ddfor viewing.New emails will result in an emacs notification.
+
+#+begin_src emacs-lisp
+  (setq mu4e-maildir (expand-file-name "~/Maildir/my-outlook")
+        mu4e-get-mail-command "mbsync -a"
+        mu4e-update-interval 600
+        mu4e-index-update-in-background t
+        mu4e-compose-signature-auto-include t
+        mu4e-use-fancy-chars t
+        mu4e-view-show-addresses t
+        mu4e-view-show-images t
+        mu4e-compose-format-flowed t
+        mu4e-change-filenames-when-moving t
+        mu4e-maildir-shortcuts
+         '( ("/Inbox" . ?i)
+            ("/Archive" . ?a)
+            ("/Drafts" . ?d)
+            ("/Deleted" . ?t)
+            ("/Sent" . ?s))
+
+         message-send-mail-function 'smtpmail-send-it
+         message-signature-file "~/.signature_email"
+         message-citation-line-format "On %a %d %b %Y at %R, %f wrote:\n"
+         message-citation-line-function 'message-insert-formatted-citation-line
+         message-kill-buffer-on-exit t)
+
+(set-email-account! "klebane@outlook.com"
+                    '((user-mail-address      . "klebane@outlook.com")
+                      (user-full-name         . "Edward Klebanow")
+                      (smtpmail-smtp-server   . "smtp-mail.outlook.com")
+                      (smtpmail-smtp-service  . 587)
+                      (smtpmail-stream-type   . starttls)
+                      (smtpmail-debug-info    . t)
+                      (mu4e-drafts-folder     . "/Drafts")
+                      (mu4e-refile-folder     . "/Archive")
+                      (mu4e-sent-folder       . "/Sent")
+                      (mu4e-trash-folder      . "/Deleted")
+                      (mu4e-update-interval   . 600)
+                      )
+                    nil)
+
+(global-set-key "\C-cm" 'mu4e)
+
+
+(setq mu4e-get-mail-command (format "INSIDE_EMACS=%s mbsync -a" emacs-version)
+      epa-pinentry-mode 'ask)
+(setq mu4e-bookmarks
+      `(
+	("flag:unread AND NOT flag:trashed" "Unread messages" ?u)
+	("flag:unread" "Unread messages" ?n)
+        ("date:today..now" "Today's messages" ?t)
+        ))
+(map!
+ :after mu4e
+ :map mu4e-view-mode-map
+ "C-c u" #'bjm/mu4e-view-go-to-url-gui)
+
+  (after! mu4e
+  (add-to-list 'mu4e-view-actions '("browse message" .  mu4e-action-view-in-browser)))
+
+(defun bjm/mu4e-view-go-to-url-gui ()
+  "Wrapper for mu4e-view-go-to-url to use gui browser instead of eww"
+  (interactive)
+  (let ((browse-url-browser-function . browse-url-qutebrowser-program))
+    (mu4e-view-go-to-url-gui)))
+(setq mu4e-headers-results-limit '50)
+(setq bookmark-default-file '"/home/eklebanow/bookmarks")
+(defun mu4e-headers-mark-all-unread-read ()
+  "Put a ! \(read) mark on all visible unread messages."
+  (interactive)
+  (mu4e-headers-mark-for-each-if
+   (cons 'read nil)
+   (lambda (msg _param)
+     (memq 'unread (mu4e-msg-field msg :flags)))))
+
+(mu4e-alert-set-default-style 'libnotify)
+(add-hook 'after-init-hook #'mu4e-alert-enable-notifications)
+
+(add-hook 'mu4e-index-updated-hook
+  (defun new-mail-sound ()
+    (shell-command "aplay ~/sms.wav&")))
+(setq alert-fade-time '10)
+#+end_src
+
+#+RESULTS:
+| mu4e~headers-maybe-auto-update | mu4e-alert-notify-unread-mail-async | mu4e-alert-update-mail-count-modeline | new-mail-sound | mu4e~headers-index-updated-hook-fn |
+
+* Elfeed Config for RSS Feeds
+ The config for Elfeed searches feeds in areas including: linux, news, sports, tech, you tube, reddit and science.  Once entries are selected it goes into split screen views upon which entries can be viewed in the eww browser with surrounding cruff eliminated or they can be sent to graphical browser for viewing. Added functions so that date of feed is included in elfeed search. Is also set up to update feed each time elfeed is openned.
+#+begin_src emacs-lisp
+(after! elfeed
+(setq elfeed-show-entry-switch 'pop-to-buffer)
+(setq browse-url-browse-function 'browse-url-chrome))
+(global-set-key (kbd "<f8>") 'evil-mode)
+(setq rmh-elfeed-org-files (list "~/elfeed.org"))
+#+end_src
+
+* config for IRC Chat Using Circe:
+#+begin_src emacs-lisp
+(after! circe
+  (set-irc-server! "irc.us.libera.chat"
+	    '(:tls t
+	      :port 6697
+	      :nick "klebane"
+	      :sasl-username "klebane"
+	      :sasl-password "dairycow"
+	      :channels ("#gentoo"))))
+#+end_src
+* Config for Org-Mode:
+Setup for org documents including wrapping, spell checking, dictionary use and org-capture templates.  I-spell is used instead of A-spell.  Searching is by swiper
+#+begin_src emacs-lisp
+(setq org-journal-enae-agenda-integration 't)
+(setq org-hide-emphasis-markers t)
+ (after! org
+   (add-hook 'visual-line-mode-hook #'visual-fill-column-mode)
+   (setq visual-fill-column-width 80)
+   (setq-default visual-fill-column-center-text t))
+
+ (global-set-key "\C-s" 'swiper)
+
+ (after! flyspell (require 'flyspell-lazy) (flyspell-lazy-mode 1))
+
+ (after! flyspell (add-hook 'text-mode-hook 'flyspell-mode))
+    (setq ispell-program-name "hunspell")
+    (setq ispell-dictionary "en_US")
+
+ (global-set-key (kbd "<f12>") 'flyspell-correct-wrapper)
+
+ (setq +org-capture-journal-file '"~/cal/journal.org")
+ (after! org
+   (setq org-startup-indented t)
+   (setq org-superstar-headline-bullets-list '("⁖"))
+   (setq org-agenda-files '("~/org/"))
+   (setq org-odt-preferred-output-format "doc"))
+(after! org
+  (map! :map org-mode-map
+        :n "M-j" #'org-metadown
+        :n "M-k" #'org-metaup))
+#+end_src
+*  Org-Auto-Tangle
+
+Allows you to add the option #+auto-tangle: t in your Org file so that it automatically tangles when you save the document.
+#+begin_src emacs-lisp
+(use-package org-auto-tangle
+  :defer t
+  :hook (org-mode . org-auto-tangle-mode)
+  (setq org-auto-tangle-default t))
+ #+end_src
+* Journaling with Org-Roam
+ Org-Roam is set up to be my second brain.  I can capture information on a certain   te and time and then revisit it as necessary...no memory required
+  #+begin_src emacs-lisp
+(after! org
+   (use-package! org-roam
+     :init
+     (setq org-roam-v2-ack t)
+ ;
+     (map! :leader
+         :prefix "n"
+         :desc "org-roam" "l" #'org-roam-buffer-toggle
+         :desc "org-roam-node-insert" "i" #'org-roam-node-insert
+         :desc "org-roam-node-find" "f" #'org-roam-node-find
+         :desc "org-roam-ref-find" "r" #'org-roam-ref-find
+         :desc "org-roam-show-graph" "g" #'org-roam-show-graph
+         :desc "org-roam-capture" "c" #'org-roam-capture)
+ :config
+ (org-roam-setup)))
+
+   (add-hook 'org-roam-mode-hook #'turn-on-visual-line-mode)
+   (setq org-roam-capture-templates
+         '(("d" "default" plain
+            "%?"
+            :if-new (file+head "${slug}.org"
+                               "#+title: ${title}\n")
+            :unnarrowed t)))
+(use-package! org-roam-dailies
+  :init
+  (map! :leader
+        :prefix "n"
+        :desc "org-roam-dailies-capture-today" "j" #'org-roam-dailies-capture-today)
+  :custom
+  (org-roam-directory "~/RoamNotes")
+  (org-roam-completion-everywhere t)
+  (org-roam-dailies-capture-templates
+    '(("d" "default" entry "* %<%I:%M %p>: %?"
+       :if-new (file+head "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n"))))
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n i" . org-roam-node-insert)
+         :map org-mode-map
+         ("C-M-i" . completion-at-point)
+         :map org-roam-dailies-map
+         ("Y" . org-roam-dailies-capture-yesterday)
+         ("T" . org-roam-dailies-capture-tomorrow))
+  :bind-keymap
+  ("C-c n d" . org-roam-dailies-map)
+  :config
+  (require 'org-roam-dailies))
+
+  #+end_src
+** Insert Org-Down
+Allow images including screenshots to be downloaded into org files including via drag and drop.
+#+begin_src emacs-lisp
+(use-package! org-download
+  :after org
+  :custom
+  (org-download-image-dir "~/org/img/")
+  (org-download-screenshot-method "scrot -s %s")   (org-download-method 'directory)
+  (org-download-screenshot-file "~/tmp/screenshot.png")   (org-download-heading-lvl 1))
+#+end_src
+* Config for Vuiet Music Player:
+iThe vuiet music player is used with keybindings for shortcuts.
+|                          | _DESCRIPTION_                 | _KEYBINDING_ | |----------------------------+-------------------------------+--------------|
+| vuiet-next                 | /vuiet-next-track/            | SPC vn       |
+| vuiet-previous             | /play previous track/         | SPC vp       |
+| vuiet-replay               | /replay track/                | SPC vr       |
+| vuiet-play-loved-tracks    | /play loved tracks randomly/  | SPC vl       |
+| vuiet-play-loved-track     | /play a specific loved track/ | SPC vtt      |
+| vuiet-play-album           | /pick a whole album to play/  | SPC va       |
+| vuiet-play-track-search    | /search to find a track/      | SPC vts      |
+| vuiet-playing-track-lyrics | /show track lyrics/           | SPC vtl      |
+
+#+begin_src emacs-lisp
+(setq vuiet-youtube-dl-command "yt-dlp")
+(map! :leader
+      (:prefix ("v" . "vuiet")
+       :desc "vuiet-stop" "s" #'vuiet-stop
+       :desc "vuiet-next" "n" #'vuiet-next
+       :desc "vuiet-previous" "p" #'vuiet-previous
+       :desc "vuiet-replay" "r" #'vuiet-replay
+       :desc "vuiet-play-loved-tracks" "l" #'vuiet-play-loved-tracks
+       :desc "vuiet-play-loved-track" "tt" #'vuiet-play-loved-track
+       :desc "vuiet-play-album" "a" #'vuiet-play-album
+       :desc "vuiet-play-track-search" "ts" #'vuiet-play-track-search
+       :desc "vuiet-play-track-lyrics" "tl" #'vuiet-playing-track-lyrics))
+#+end_src
+
+* Setup for PDF exports
+Here I use a setup file which is linked to each time a pdf is exported to get beautiful pdf exports
+#+begin_src emacs-lisp
+(with-eval-after-load 'org-latex
+(add-to-list 'org-latex-classes
+             '("org-plain-latex"
+               "\\documentclass{article}
+           [NO-DEFAULT-PACKAGES]
+           [PACKAGES]
+           [EXTRA]"
+               ("\\section{%s}" . "\\section*{%s}")
+               ("\\subsection{%s}" . "\\subsection*{%s}")
+               ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+               ("\\paragraph{%s}" . "\\paragraph*{%s}")
+               ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
+(setq org-latex-toc-command "\\tableofcontents \\clearpage")
+#+end_src
+* Add Beacon
+Beacon causes cursor to be more apparent when moving between large areas
+#+begin_src emacs-lisp
+(beacon-mode t)
+#+end_src
